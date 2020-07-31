@@ -16,7 +16,7 @@ namespace ToolGood.WordTemplate
     /// </summary>
     public class OpenXmlTemplate : AlgorithmEngine
     {
-        private readonly static Regex _tempEngine = new Regex("^###([^:]*):(.*)$");// 定义临时变量
+        private readonly static Regex _tempEngine = new Regex("^###([^:：]*)[:：](.*)$");// 定义临时变量
         private readonly static Regex _tempMatch = new Regex("(#[^#]*#)");// 
         private readonly static Regex _simplifyMatch = new Regex(@"(\{[^\}]*\})");//简化文本 只读取字段
         private DataTable _dt;
@@ -24,23 +24,27 @@ namespace ToolGood.WordTemplate
         public byte[] BuildTemplate(DataTable dataTable, string fileName)
         {
             _dt = dataTable;
+            this.ClearParameters();
             var bs = File.ReadAllBytes(fileName);
             using (var ms = new MemoryStream(bs))
-            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true))
-            {
+            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
                 var body = wordDoc.MainDocumentPart.Document.Body;
                 ReplaceTemplate(body);
-                return ms.ToArray();
+
+                using (var ms2 = new MemoryStream()) {
+                    wordDoc.Clone(ms2);
+                    return ms2.ToArray();
+                }
             };
         }
 
         public void BuildTemplate(DataTable dataTable, string fileName, string newFilePath)
         {
             _dt = dataTable;
+            this.ClearParameters();
             var bs = File.ReadAllBytes(fileName);
             using (var ms = new MemoryStream(bs))
-            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true))
-            {
+            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
                 var body = wordDoc.MainDocumentPart.Document.Body;
                 ReplaceTemplate(body);
                 wordDoc.SaveAs(newFilePath);
@@ -50,11 +54,11 @@ namespace ToolGood.WordTemplate
         public byte[] BuildTemplate(string jsonData, string fileName)
         {
             _dt = null;
+            this.ClearParameters();
             this.AddParameterFromJson(jsonData);
             var bs = File.ReadAllBytes(fileName);
             using (var ms = new MemoryStream(bs))
-            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true))
-            {
+            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
                 var body = wordDoc.MainDocumentPart.Document.Body;
                 ReplaceTemplate(body);
                 return ms.ToArray();
@@ -64,11 +68,11 @@ namespace ToolGood.WordTemplate
         public void BuildTemplate(string jsonData, string fileName, string newFilePath)
         {
             _dt = null;
+            this.ClearParameters();
             this.AddParameterFromJson(jsonData);
             var bs = File.ReadAllBytes(fileName);
             using (var ms = new MemoryStream(bs))
-            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true))
-            {
+            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
                 var body = wordDoc.MainDocumentPart.Document.Body;
                 ReplaceTemplate(body);
                 wordDoc.SaveAs(newFilePath);
@@ -81,12 +85,10 @@ namespace ToolGood.WordTemplate
         {
             var tempMatches = new List<string>();
             List<Paragraph> deleteParagraph = new List<Paragraph>();
-            foreach (var paragraph in body.Descendants<Paragraph>())
-            {
+            foreach (var paragraph in body.Descendants<Paragraph>()) {
                 var text = paragraph.InnerText.Trim();
                 var m = _tempEngine.Match(text);
-                if (m.Success)
-                {
+                if (m.Success) {
                     var name = m.Groups[1].Value.Trim();
                     var engine = m.Groups[2].Value.Trim();
                     var value = this.TryEvaluate(engine, "");
@@ -95,36 +97,28 @@ namespace ToolGood.WordTemplate
                     continue;
                 }
                 var m2 = _tempMatch.Match(text);
-                if (m2.Success)
-                {
+                if (m2.Success) {
                     tempMatches.Add(m2.Groups[1].Value);
                     continue;
                 }
                 var m3 = _simplifyMatch.Match(text);
-                if (m3.Success)
-                {
+                if (m3.Success) {
                     tempMatches.Add(m3.Groups[1].Value);
                     continue;
                 }
             }
-            foreach (var paragraph in deleteParagraph)
-            {
+            foreach (var paragraph in deleteParagraph) {
                 paragraph.Remove();
             }
 
-            foreach (var m in tempMatches)
-            {
+            foreach (var m in tempMatches) {
                 string value;
-                if (m.StartsWith("#"))
-                {
+                if (m.StartsWith("#")) {
                     value = this.TryEvaluate(m.Trim('#'), "");
-                }
-                else
-                {
+                } else {
                     value = this.TryEvaluate(m.Replace("{", "[").Replace("}", "]"), "");
                 }
-                foreach (var paragraph in body.Descendants<Paragraph>())
-                {
+                foreach (var paragraph in body.Descendants<Paragraph>()) {
                     ReplaceText(paragraph, m, value);
                 }
             }
@@ -133,10 +127,8 @@ namespace ToolGood.WordTemplate
         protected override Operand GetParameter(string parameter)
         {
             parameter = parameter.Trim();
-            if (_dt != null && _dt.Rows.Count > 0 && _dt.Columns.Contains(parameter))
-            {
-                if (_dt.Rows[0].IsNull(parameter))
-                {
+            if (_dt != null && _dt.Rows.Count > 0 && _dt.Columns.Contains(parameter)) {
+                if (_dt.Rows[0].IsNull(parameter)) {
                     return Operand.CreateNull();
                 }
                 var obj = _dt.Rows[0][parameter];
@@ -172,14 +164,11 @@ namespace ToolGood.WordTemplate
         private void ReplaceText(Paragraph paragraph, string find, string replaceWith)
         {
             var texts = paragraph.Descendants<Text>();
-            for (int t = 0; t < texts.Count(); t++)
-            {   // figure out which Text element within the paragraph contains the starting point of the search string
+            for (int t = 0; t < texts.Count(); t++) {   // figure out which Text element within the paragraph contains the starting point of the search string
                 Text txt = texts.ElementAt(t);
-                for (int c = 0; c < txt.Text.Length; c++)
-                {
+                for (int c = 0; c < txt.Text.Length; c++) {
                     var match = IsMatch(texts, t, c, find);
-                    if (match != null)
-                    {   // now replace the text
+                    if (match != null) {   // now replace the text
                         string[] lines = replaceWith.Replace(Environment.NewLine, "\r").Split('\n', '\r'); // handle any lone n/r returns, plus newline.
 
                         int skip = lines[lines.Length - 1].Length - 1; // will jump to end of the replacement text, it has been processed.
@@ -193,21 +182,18 @@ namespace ToolGood.WordTemplate
                         txt.Text = lines[0];
 
                         // remove any extra texts.
-                        for (int i = t + 1; i <= match.EndElementIndex; i++)
-                        {
+                        for (int i = t + 1; i <= match.EndElementIndex; i++) {
                             texts.ElementAt(i).Text = string.Empty; // clear the text
                         }
 
                         // if 'with' contained line breaks we need to add breaks back...
-                        if (lines.Count() > 1)
-                        {
+                        if (lines.Count() > 1) {
                             OpenXmlElement currEl = txt;
                             Break br;
 
                             // append more lines
                             var run = txt.Parent as Run;
-                            for (int i = 1; i < lines.Count(); i++)
-                            {
+                            for (int i = 1; i < lines.Count(); i++) {
                                 br = new Break();
                                 run.InsertAfter<Break>(br, currEl);
                                 currEl = br;
@@ -217,9 +203,7 @@ namespace ToolGood.WordTemplate
                                 currEl = txt;
                             }
                             c = skip; // new line
-                        }
-                        else
-                        {   // continue to process same line
+                        } else {   // continue to process same line
                             c += skip;
                         }
                     }
@@ -238,12 +222,9 @@ namespace ToolGood.WordTemplate
         private Match IsMatch(IEnumerable<Text> texts, int t, int c, string find)
         {
             int ix = 0;
-            for (int i = t; i < texts.Count(); i++)
-            {
-                for (int j = c; j < texts.ElementAt(i).Text.Length; j++)
-                {
-                    if (find[ix] != texts.ElementAt(i).Text[j])
-                    {
+            for (int i = t; i < texts.Count(); i++) {
+                for (int j = c; j < texts.ElementAt(i).Text.Length; j++) {
+                    if (find[ix] != texts.ElementAt(i).Text[j]) {
                         return null; // element mismatch
                     }
                     ix++; // match; go to next character

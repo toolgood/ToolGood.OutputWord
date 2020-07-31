@@ -8,7 +8,15 @@
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.11.3" />
     <PackageReference Include="DocXCore" Version="1.0.7" />
-    <PackageReference Include="ToolGood.Algorithm" Version="2.1.0.1" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.1" />
+    <PackageReference Include="ToolGood.Algorithm" Version="2.1.0.2" />
+    <PackageReference Include="ToolGood.ReadyGo3" Version="3.3.0.36" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="test.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
