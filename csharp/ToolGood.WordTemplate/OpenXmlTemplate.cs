@@ -19,16 +19,46 @@ namespace ToolGood.WordTemplate
         private readonly static Regex _tempEngine = new Regex("^###([^:：]*)[:：](.*)$");// 定义临时变量
         private readonly static Regex _tempMatch = new Regex("(#[^#]*#)");// 
         private readonly static Regex _simplifyMatch = new Regex(@"(\{[^\}]*\})");//简化文本 只读取字段
-        private DataTable _dt;
+        private readonly static Regex _rowMatch = new Regex(@"({{(.*?)}})");// 
 
-        public byte[] BuildTemplate(DataTable dataTable, string fileName)
+        private DataTable _dt;
+        private int _idx;
+        private List<string> listNames = new List<string>();
+
+        public OpenXmlTemplate()
+        {
+            listNames.Add("\\[i\\]");
+        }
+
+        public void Reset()
+        {
+            _dt = null;
+            listNames.Clear();
+            listNames.Add("\\[i\\]");
+            ClearParameters();
+        }
+        public void SetData(DataTable dataTable)
         {
             _dt = dataTable;
-            this.ClearParameters();
-            var bs = File.ReadAllBytes(fileName);
-            using (var ms = new MemoryStream(bs))
+        }
+        public void SetListData(string listName, string jsonData)
+        {
+            var name = listName.Replace("\\", "\\\\").Replace("[", "\\[").Replace("]", "\\]").Replace("(", "\\(").Replace(")", "\\)");
+            listNames.Add("\\b" + name + "\\b");
+            AddParameter(listName, Operand.CreateJson(jsonData));
+        }
+
+
+        public byte[] BuildTemplate(string fileName)
+        {
+            var bytes = File.ReadAllBytes(fileName);
+            var ms = new MemoryStream();
+            ms.Write(bytes, 0, bytes.Length);
+            ms.Position = 0;
+
             using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
                 var body = wordDoc.MainDocumentPart.Document.Body;
+                ReplaceTable(body);
                 ReplaceTemplate(body);
 
                 using (var ms2 = new MemoryStream()) {
@@ -36,48 +66,81 @@ namespace ToolGood.WordTemplate
                     return ms2.ToArray();
                 }
             };
+            ms.Dispose();
+
         }
 
-        public void BuildTemplate(DataTable dataTable, string fileName, string newFilePath)
+        public void BuildTemplate(string fileName, string newFilePath)
         {
-            _dt = dataTable;
-            this.ClearParameters();
-            var bs = File.ReadAllBytes(fileName);
-            using (var ms = new MemoryStream(bs))
+            var bytes = File.ReadAllBytes(fileName);
+            var ms = new MemoryStream();
+            ms.Write(bytes, 0, bytes.Length);
+            ms.Position = 0;
             using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
                 var body = wordDoc.MainDocumentPart.Document.Body;
+                ReplaceTable(body);
                 ReplaceTemplate(body);
                 wordDoc.SaveAs(newFilePath);
             };
+            ms.Dispose();
+        }
+        private void ReplaceTable(Body body)
+        {
+            foreach (Table table in body.Descendants<Table>()) {
+
+                foreach (TableRow row in table.Descendants<TableRow>()) {
+                    var fcell = row.FirstChild as TableCell;
+                    var paragraph = fcell.Descendants<Paragraph>().FirstOrDefault();
+                    var text = paragraph.InnerText.Trim();
+                    if (_rowMatch.IsMatch(text)) {
+                        // 防止 list[i].Id 写成  [list][[i]].Id 这种繁杂的方式
+                        Regex nameReg = new Regex(string.Join("|", listNames));
+                        Dictionary<string, string> tempMatches = new Dictionary<string, string>();
+                        foreach (Paragraph ph in row.Descendants<Paragraph>()) {
+                            var m2 = _rowMatch.Match(ph.InnerText.Trim());
+                            if (m2.Success) {
+                                var txt = m2.Groups[1].Value;
+                                var eval = txt.Substring(2, txt.Length - 4).Trim();
+                                eval = nameReg.Replace(eval, new MatchEvaluator((m) => {
+                                    return "[" + m.Value + "]";
+                                }));
+                                tempMatches[txt] = eval;
+                            }
+                        }
+
+                        TableRow tpl = row.CloneNode(true) as TableRow;
+                        TableRow lastRow = row;
+                        TableRow opRow = row;
+                        var startIndex = UseExcelIndex ? 1 : 0;
+                        _idx = startIndex;
+
+                        while (true) {
+                            if (_idx > startIndex) { opRow = tpl.CloneNode(true) as TableRow; }
+
+                            foreach (var m in tempMatches) {
+                                string value = this.TryEvaluate(m.Value, null);
+                                if (value == null) {
+                                    tpl = null;
+                                    return;
+                                }
+                                foreach (var ph in opRow.Descendants<Paragraph>()) {
+                                    ReplaceText(ph, m.Key, value);
+                                }
+                            }
+
+                            if (_idx > startIndex) { table.InsertAfter(opRow, lastRow); }
+                            lastRow = opRow;
+                            _idx++;
+                        }
+
+                    }
+                }
+            }
         }
 
-        public byte[] BuildTemplate(string jsonData, string fileName)
-        {
-            _dt = null;
-            this.ClearParameters();
-            this.AddParameterFromJson(jsonData);
-            var bs = File.ReadAllBytes(fileName);
-            using (var ms = new MemoryStream(bs))
-            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
-                var body = wordDoc.MainDocumentPart.Document.Body;
-                ReplaceTemplate(body);
-                return ms.ToArray();
-            };
-        }
 
-        public void BuildTemplate(string jsonData, string fileName, string newFilePath)
-        {
-            _dt = null;
-            this.ClearParameters();
-            this.AddParameterFromJson(jsonData);
-            var bs = File.ReadAllBytes(fileName);
-            using (var ms = new MemoryStream(bs))
-            using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true)) {
-                var body = wordDoc.MainDocumentPart.Document.Body;
-                ReplaceTemplate(body);
-                wordDoc.SaveAs(newFilePath);
-            };
-        }
+
+
 
 
 
@@ -127,6 +190,9 @@ namespace ToolGood.WordTemplate
         protected override Operand GetParameter(string parameter)
         {
             parameter = parameter.Trim();
+            if (parameter.Equals("i", StringComparison.OrdinalIgnoreCase)) {
+                return _idx;
+            }
             if (_dt != null && _dt.Rows.Count > 0 && _dt.Columns.Contains(parameter)) {
                 if (_dt.Rows[0].IsNull(parameter)) {
                     return Operand.CreateNull();
@@ -148,7 +214,8 @@ namespace ToolGood.WordTemplate
 
                 return _dt.Rows[0][parameter]?.ToString() ?? "";
             }
-            return base.GetParameter(parameter);
+            var p = base.GetParameter(parameter);
+            return p;
         }
 
 

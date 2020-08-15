@@ -9,7 +9,7 @@ using ToolGood.Algorithm;
 namespace ToolGood.WordTemplate
 {
     /// <summary>
-    /// 原Docx 组件，个人免费，不能商用。 
+    /// 原Docx 组件，个人免费，不能商用。 所以 懒得加表格模板
     /// 还有一点，经测试文件会变大。
     /// </summary>
     public class DocxTemplate : AlgorithmEngine
@@ -19,10 +19,25 @@ namespace ToolGood.WordTemplate
         private readonly static Regex _simplifyMatch = new Regex(@"(\{[^\}]*\})");//简化文本 只读取字段
         private DataTable _dt;
 
-        public byte[] BuildTemplate(DataTable dataTable, string fileName)
+
+        public void Reset()
+        {
+            _dt = null;
+            ClearParameters();
+        }
+
+        public void SetData(DataTable dataTable)
         {
             _dt = dataTable;
-            this.ClearParameters();
+        }
+        public void SetListData(string listName, string jsonData)
+        {
+            AddParameter(listName, jsonData);
+        }
+
+
+        public byte[] BuildTemplate(string fileName)
+        {
             using (DocX document = DocX.Load(fileName)) {
                 ReplaceTemplate(document);
                 using (var ms = new MemoryStream()) {
@@ -32,40 +47,14 @@ namespace ToolGood.WordTemplate
             }
         }
 
-        public void BuildTemplate(DataTable dataTable, string fileName, string newFilePath)
+        public void BuildTemplate(string fileName, string newFilePath)
         {
-            _dt = dataTable;
-            this.ClearParameters();
             using (DocX document = DocX.Load(fileName)) {
                 ReplaceTemplate(document);
                 document.SaveAs(newFilePath);
             }
         }
 
-        public byte[] BuildTemplate(string jsonData, string fileName)
-        {
-            _dt = null;
-            this.ClearParameters();
-            this.AddParameterFromJson(jsonData);
-            using (DocX document = DocX.Load(fileName)) {
-                ReplaceTemplate(document);
-                using (var ms = new MemoryStream()) {
-                    document.SaveAs(ms);
-                    return ms.ToArray();
-                }
-            }
-        }
-
-        public void BuildTemplate(string jsonData, string fileName, string newFilePath)
-        {
-            _dt = null;
-            this.ClearParameters();
-            this.AddParameterFromJson(jsonData);
-            using (DocX document = DocX.Load(fileName)) {
-                ReplaceTemplate(document);
-                document.SaveAs(newFilePath);
-            }
-        }
 
         private void ReplaceTemplate(DocX document)
         {
