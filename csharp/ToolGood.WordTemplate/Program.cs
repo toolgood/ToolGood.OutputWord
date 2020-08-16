@@ -38,7 +38,7 @@ namespace ToolGood.WordTemplate
             //File.WriteAllBytes("docx_1.docx", bs);
             //docxTemplate.BuildTemplate("test.docx", "docx_2.docx");
 
-            WordTemplate openXmlTemplate = new WordTemplate();
+            ToolGood.OutputWord.WordTemplate openXmlTemplate = new ToolGood.OutputWord.WordTemplate();
             openXmlTemplate.SetData(dt);
             openXmlTemplate.SetListData("list", JsonConvert.SerializeObject(tableTests));
 

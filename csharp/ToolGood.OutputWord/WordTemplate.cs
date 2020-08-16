@@ -18,7 +18,7 @@ namespace ToolGood.OutputWord
     {
         private readonly static Regex _tempEngine = new Regex("^###([^:：]*)[:：](.*)$");// 定义临时变量
         private readonly static Regex _tempMatch = new Regex("(#[^#]+#)");// 
-        private readonly static Regex _simplifyMatch = new Regex(@"(\{[^\}]*\})");//简化文本 只读取字段
+        private readonly static Regex _simplifyMatch = new Regex(@"(\{[^\{\}]*\})");//简化文本 只读取字段
         private readonly static Regex _rowMatch = new Regex(@"({{(.*?)}})");// 
 
         private DataTable _dt;
@@ -123,15 +123,25 @@ namespace ToolGood.OutputWord
                         while (true) {
                             if (_idx > startIndex) { opRow = tpl.CloneNode(true) as TableRow; }
 
+                            bool isMatch = true;
                             foreach (var m in tempMatches) {
                                 string value = this.TryEvaluate(m.Value, null);
                                 if (value == null) {
-                                    tpl = null;
-                                    return;
+                                    isMatch = false;
+                                    break;
                                 }
                                 foreach (var ph in opRow.Descendants<Paragraph>()) {
                                     ReplaceText(ph, m.Key, value);
                                 }
+                            }
+                            if (isMatch==false) {
+                                //当数据为空时，清空数据
+                                if (_idx == startIndex) {
+                                    foreach (var ph in opRow.Descendants<Paragraph>()) {
+                                        ph.RemoveAllChildren();
+                                    }
+                                }
+                                break;
                             }
 
                             if (_idx > startIndex) { table.InsertAfter(opRow, lastRow); }
