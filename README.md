@@ -5,8 +5,12 @@ WordÄ£°åµ¼³ö£¬²ÉÓÃToolGood.Algorithm¼ÆËãÒıÇæ£¬Ö§³Ö³£ÓÃExcel¹«Ê½£¬×öµ½µ¼³öÄ£°åÓë´
 
 
 ### ¿ìËÙÉÏÊÖ
-ºóÌ¨´úÂë
+Nuget ÃüÁîĞĞ
+```
+    Install-Package ToolGood.OutputWord 
+```
 
+ºóÌ¨´úÂë
 ```` csharp
             // »ñÈ¡Êı¾İ
             var helper = SqlHelperFactory.OpenSqliteFile("test.db");
