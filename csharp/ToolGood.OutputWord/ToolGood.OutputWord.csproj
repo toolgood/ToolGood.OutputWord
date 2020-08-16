@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net40;net45;netstandard2.0;netstandard2.1;</TargetFrameworks>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>ToolGood.OutputWord.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>false</DelaySign>
+    <Authors>ToolGood</Authors>
+    <Description>Word模板导出，采用ToolGood.Algorithm计算引擎，支持常用Excel公式，做到导出模板与代码分离的效果</Description>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <Copyright>Copyright 2020 ToolGood</Copyright>
+    <PackageProjectUrl>https://github.com/toolgood/ToolGood.WordTemplate</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>word</PackageTags>
+    <PackageReleaseNotes>Word模板导出，采用ToolGood.Algorithm计算引擎，支持常用Excel公式，做到导出模板与代码分离的效果</PackageReleaseNotes>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="2.11.3" />
+    <PackageReference Include="ToolGood.Algorithm" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>

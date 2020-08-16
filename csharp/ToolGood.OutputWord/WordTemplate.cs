@@ -9,15 +9,15 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ToolGood.Algorithm;
 
-namespace ToolGood.WordTemplate
+namespace ToolGood.OutputWord
 {
     /// <summary>
     /// DocumentFormat.OpenXml MIT协议，可以商用
     /// </summary>
-    public class OpenXmlTemplate : AlgorithmEngine
+    public class WordTemplate : AlgorithmEngine
     {
         private readonly static Regex _tempEngine = new Regex("^###([^:：]*)[:：](.*)$");// 定义临时变量
-        private readonly static Regex _tempMatch = new Regex("(#[^#]*#)");// 
+        private readonly static Regex _tempMatch = new Regex("(#[^#]+#)");// 
         private readonly static Regex _simplifyMatch = new Regex(@"(\{[^\}]*\})");//简化文本 只读取字段
         private readonly static Regex _rowMatch = new Regex(@"({{(.*?)}})");// 
 
@@ -25,7 +25,7 @@ namespace ToolGood.WordTemplate
         private int _idx;
         private List<string> listNames = new List<string>();
 
-        public OpenXmlTemplate()
+        public WordTemplate()
         {
             listNames.Add("\\[i\\]");
         }
@@ -84,15 +84,21 @@ namespace ToolGood.WordTemplate
             };
             ms.Dispose();
         }
+
         private void ReplaceTable(Body body)
         {
             foreach (Table table in body.Descendants<Table>()) {
 
                 foreach (TableRow row in table.Descendants<TableRow>()) {
-                    var fcell = row.FirstChild as TableCell;
-                    var paragraph = fcell.Descendants<Paragraph>().FirstOrDefault();
-                    var text = paragraph.InnerText.Trim();
-                    if (_rowMatch.IsMatch(text)) {
+                    bool isRowData = false;
+                    foreach (var paragraph in row.Descendants<Paragraph>()) {
+                        var text = paragraph.InnerText.Trim();
+                        if (_rowMatch.IsMatch(text)) {
+                            isRowData = true;
+                            break;
+                        }
+                    }
+                    if (isRowData) {
                         // 防止 list[i].Id 写成  [list][[i]].Id 这种繁杂的方式
                         Regex nameReg = new Regex(string.Join("|", listNames));
                         Dictionary<string, string> tempMatches = new Dictionary<string, string>();
@@ -101,8 +107,8 @@ namespace ToolGood.WordTemplate
                             if (m2.Success) {
                                 var txt = m2.Groups[1].Value;
                                 var eval = txt.Substring(2, txt.Length - 4).Trim();
-                                eval = nameReg.Replace(eval, new MatchEvaluator((m) => {
-                                    return "[" + m.Value + "]";
+                                eval = nameReg.Replace(eval, new MatchEvaluator((k) => {
+                                    return "[" + k.Value + "]";
                                 }));
                                 tempMatches[txt] = eval;
                             }
@@ -139,13 +145,9 @@ namespace ToolGood.WordTemplate
         }
 
 
-
-
-
-
-
         private void ReplaceTemplate(Body body)
         {
+            _idx = UseExcelIndex ? 1 : 0;
             var tempMatches = new List<string>();
             List<Paragraph> deleteParagraph = new List<Paragraph>();
             foreach (var paragraph in body.Descendants<Paragraph>()) {
@@ -174,10 +176,16 @@ namespace ToolGood.WordTemplate
                 paragraph.Remove();
             }
 
+            Regex nameReg = new Regex(string.Join("|", listNames));
             foreach (var m in tempMatches) {
                 string value;
                 if (m.StartsWith("#")) {
-                    value = this.TryEvaluate(m.Trim('#'), "");
+                    var eval = m.Trim('#');
+                    // 防止 list[i].Id 写成  [list][[i]].Id 这种繁杂的方式
+                    eval = nameReg.Replace(eval, new MatchEvaluator((k) => {
+                        return "[" + k.Value + "]";
+                    }));
+                    value = this.TryEvaluate(eval, "");
                 } else {
                     value = this.TryEvaluate(m.Replace("{", "[").Replace("}", "]"), "");
                 }
@@ -198,6 +206,8 @@ namespace ToolGood.WordTemplate
                     return Operand.CreateNull();
                 }
                 var obj = _dt.Rows[0][parameter];
+                { if (obj is Byte val) { return (int)val; } }
+                { if (obj is SByte val) { return (int)val; } }
                 { if (obj is Int16 val) { return val; } }
                 { if (obj is Int32 val) { return val; } }
                 { if (obj is Int64 val) { return val; } }

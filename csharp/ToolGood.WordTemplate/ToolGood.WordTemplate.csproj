@@ -15,6 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ToolGood.OutputWord\ToolGood.OutputWord.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="test.docx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

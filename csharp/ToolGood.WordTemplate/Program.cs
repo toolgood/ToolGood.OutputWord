@@ -2,6 +2,7 @@
 using System.IO;
 using ToolGood.ReadyGo3;
 using Newtonsoft.Json;
+using ToolGood.OutputWord;
 
 namespace ToolGood.WordTemplate
 {
@@ -37,7 +38,7 @@ namespace ToolGood.WordTemplate
             //File.WriteAllBytes("docx_1.docx", bs);
             //docxTemplate.BuildTemplate("test.docx", "docx_2.docx");
 
-            OpenXmlTemplate openXmlTemplate = new OpenXmlTemplate();
+            WordTemplate openXmlTemplate = new WordTemplate();
             openXmlTemplate.SetData(dt);
             openXmlTemplate.SetListData("list", JsonConvert.SerializeObject(tableTests));
 
