@@ -1,7 +1,7 @@
-# ToolGood.WordTemplate
+# ToolGood.OutputWord
 
 
-Word模板导出，采用ToolGood.Algorithm计算引擎，支持常用Excel公式，做到导出模板与代码分离的效果。
+Word模板导出组件，采用ToolGood.Algorithm计算引擎，支持常用Excel公式，做到模板与代码分离的效果。
 
 
 ### 快速上手
