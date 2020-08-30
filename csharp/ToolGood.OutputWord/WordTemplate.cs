@@ -52,7 +52,19 @@ namespace ToolGood.OutputWord
             listNames.Add("\\b" + name + "\\b");
             AddParameter(listName, Operand.CreateJson(jsonData));
         }
-
+        public void SetImageFile(string name,string file)
+        {
+            var bytes = File.ReadAllBytes(file);
+            AddParameter(name, Convert.ToBase64String(bytes));
+        }
+        public void SetImage(string name, byte[] fileBytes)
+        {
+            AddParameter(name, Convert.ToBase64String(fileBytes));
+        }
+        public void SetImageBase64(string name, string imageBase64)
+        {
+            AddParameter(name, imageBase64);
+        }
 
         public byte[] BuildTemplate(string fileName)
         {
