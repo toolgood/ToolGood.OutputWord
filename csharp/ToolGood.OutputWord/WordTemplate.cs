@@ -52,7 +52,19 @@ namespace ToolGood.OutputWord
             listNames.Add("\\b" + name + "\\b");
             AddParameter(listName, Operand.CreateJson(jsonData));
         }
-
+        public void SetImageFile(string name,string file)
+        {
+            var bytes = File.ReadAllBytes(file);
+            AddParameter(name, Convert.ToBase64String(bytes));
+        }
+        public void SetImage(string name, byte[] fileBytes)
+        {
+            AddParameter(name, Convert.ToBase64String(fileBytes));
+        }
+        public void SetImageBase64(string name, string imageBase64)
+        {
+            AddParameter(name, imageBase64);
+        }
 
         public byte[] BuildTemplate(string fileName)
         {
@@ -65,14 +77,13 @@ namespace ToolGood.OutputWord
                 var body = wordDoc.MainDocumentPart.Document.Body;
                 ReplaceTable(body);
                 ReplaceTemplate(body);
-                //ReplacePicture(wordDoc.MainDocumentPart, body);
+                ReplacePicture(wordDoc.MainDocumentPart, body);
                 using (var ms2 = new MemoryStream()) {
                     wordDoc.Clone(ms2);
                     return ms2.ToArray();
                 }
             };
             ms.Dispose();
-
         }
 
         public void BuildTemplate(string fileName, string newFilePath)
@@ -85,12 +96,13 @@ namespace ToolGood.OutputWord
                 var body = wordDoc.MainDocumentPart.Document.Body;
                 ReplaceTable(body);
                 ReplaceTemplate(body);
-                //ReplacePicture(wordDoc.MainDocumentPart,body);
+                ReplacePicture(wordDoc.MainDocumentPart, body);
                 wordDoc.SaveAs(newFilePath);
             };
             ms.Dispose();
         }
 
+        #region ReplaceTable
         private void ReplaceTable(Body body)
         {
             foreach (Table table in body.Descendants<Table>()) {
@@ -141,7 +153,7 @@ namespace ToolGood.OutputWord
                                     ReplaceText(ph, m.Key, value);
                                 }
                             }
-                            if (isMatch==false) {
+                            if (isMatch == false) {
                                 //当数据为空时，清空数据
                                 if (_idx == startIndex) {
                                     foreach (var ph in opRow.Descendants<Paragraph>()) {
@@ -161,7 +173,9 @@ namespace ToolGood.OutputWord
             }
         }
 
+        #endregion
 
+        #region ReplaceTemplate
         private void ReplaceTemplate(Body body)
         {
             _idx = UseExcelIndex ? 1 : 0;
@@ -247,6 +261,107 @@ namespace ToolGood.OutputWord
             return p;
         }
 
+
+        #endregion
+
+        #region ReplacePicture
+        private void ReplacePicture(MainDocumentPart mainPart, Body body)
+        {
+            foreach (var paragraph in body.Descendants<Paragraph>()) {
+                var text = paragraph.InnerText.Trim();
+                var m = _imageMatch.Match(text);
+                if (m.Success) {
+                    //var name = m.Groups[1].Value.Trim();
+                    var engine = m.Groups[2].Value.Trim();
+                    var value = this.TryEvaluate("[" + engine + "]", "");
+                    paragraph.RemoveAllChildren();
+                    if (string.IsNullOrEmpty(value) == false) {
+                        InsertPicture(mainPart, paragraph, value);
+                    }
+                }
+            }
+        }
+
+        private void InsertPicture(MainDocumentPart mainPart, Paragraph paragraph, string fileBase64)
+        {
+            var bytes = Convert.FromBase64String(fileBase64);
+            ImagePartType type = CheckImageType(bytes);
+            ImagePart imagePart = mainPart.AddImagePart(type);
+
+            using (MemoryStream stream = new MemoryStream(bytes)) {
+                imagePart.FeedData(stream);
+            }
+            var element = CreateDrawing(mainPart.GetIdOfPart(imagePart));
+
+            var run = new Run(element);
+            paragraph.AppendChild(run);
+        }
+
+        private ImagePartType CheckImageType(byte[] buf)
+        {
+            if (buf == null || buf.Length < 2) {
+                return ImagePartType.Jpeg;
+            }
+            Dictionary<int, ImagePartType> _imageTag = new Dictionary<int, ImagePartType>();
+            _imageTag.Add((int)ImageType.BMP, ImagePartType.Bmp);
+            _imageTag.Add((int)ImageType.JPG, ImagePartType.Jpeg);
+            _imageTag.Add((int)ImageType.GIF, ImagePartType.Gif);
+            _imageTag.Add((int)ImageType.PCX, ImagePartType.Pcx);
+            _imageTag.Add((int)ImageType.PNG, ImagePartType.Png);
+            _imageTag.Add((int)ImageType.TIFF, ImagePartType.Tiff);
+
+            int key = (buf[1] << 8) + buf[0];
+            ImagePartType s;
+            if (_imageTag.TryGetValue(key, out s)) {
+                return s;
+            }
+            return ImagePartType.Jpeg;
+        }
+        public enum ImageType
+        {
+            None = 0,
+            BMP = 0x4D42,
+            JPG = 0xD8FF,
+            GIF = 0x4947,
+            PCX = 0x050A,
+            PNG = 0x5089,
+            PSD = 0x4238,
+            RAS = 0xA659,
+            SGI = 0xDA01,
+            TIFF = 0x4949
+        }
+
+        private Drawing CreateDrawing(string relationshipId)
+        {
+            var element = new Drawing(
+                     new DW.Inline(
+                         new DW.Extent() { Cx = 990000L, Cy = 792000L },
+                         new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                         new DW.DocProperties() { Id = (UInt32Value)1U, Name = "Picture" },
+                         new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks() { NoChangeAspect = true }),
+                         new A.Graphic(
+                             new A.GraphicData(
+                                 new PIC.Picture(
+                                     new PIC.NonVisualPictureProperties(
+                                         new PIC.NonVisualDrawingProperties() { Id = (UInt32Value)0U, Name = "Image.jpg" },
+                                         new PIC.NonVisualPictureDrawingProperties()),
+                                     new PIC.BlipFill(
+                                         new A.Blip(
+                                             new A.BlipExtensionList(new A.BlipExtension() { Uri = "{28A0092B-C50C-407E-A947-70E740481C1C}" })) {
+                                             Embed = relationshipId,
+                                             CompressionState = A.BlipCompressionValues.Print
+                                         },
+                                         new A.Stretch(new A.FillRectangle())),
+                                     new PIC.ShapeProperties(
+                                         new A.Transform2D(new A.Offset() { X = 0L, Y = 0L }, new A.Extents() { Cx = 990000L, Cy = 792000L }),
+                                         new A.PresetGeometry(new A.AdjustValueList()) {
+                                             Preset = A.ShapeTypeValues.Rectangle
+                                         }))
+                             ) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" })
+                     ) { DistanceFromTop = (UInt32Value)0U, DistanceFromBottom = (UInt32Value)0U, DistanceFromLeft = (UInt32Value)0U, DistanceFromRight = (UInt32Value)0U, });
+            return element;
+        }
+        #endregion
 
         #region OpenXml ReplaceText
         // 代码来源 https://stackoverflow.com/questions/19094388/openxml-replace-text-in-all-document
@@ -346,120 +461,6 @@ namespace ToolGood.OutputWord
             /// </summary>
             public int EndCharIndex { get; set; }
         }
-        #endregion
-
-        #region ReplacePicture
-        private void ReplacePicture(MainDocumentPart mainPart, Body body)
-        {
-            foreach (var paragraph in body.Descendants<Paragraph>())
-            {
-                var text = paragraph.InnerText.Trim();
-                var m = _imageMatch.Match(text);
-                if (m.Success)
-                {
-                    //var name = m.Groups[1].Value.Trim();
-                    var engine = m.Groups[2].Value.Trim();
-                    var value = this.TryEvaluate(engine, "");
-                    paragraph.RemoveAllChildren();
-                    InsertPicture(mainPart, paragraph, value);
-                }
-            }
-        }
-
-        private void InsertPicture(MainDocumentPart mainPart, Paragraph paragraph, string fileBase64)
-        {
-            var bytes = Convert.FromBase64String(fileBase64);
-            ImagePartType type = CheckImageType(bytes);
-            ImagePart imagePart = mainPart.AddImagePart(type);
-
-            using (MemoryStream stream = new MemoryStream(bytes))
-            {
-                imagePart.FeedData(stream);
-            }
-            AddImageToBody(paragraph, mainPart.GetIdOfPart(imagePart));
-        }
-
-        private ImagePartType CheckImageType(byte[] buf)
-        {
-            if (buf == null || buf.Length < 2)
-            {
-                return ImagePartType.Jpeg;
-            }
-            Dictionary<int, ImagePartType> _imageTag = new Dictionary<int, ImagePartType>();
-            _imageTag.Add((int) ImageType.BMP, ImagePartType.Bmp);
-            _imageTag.Add((int) ImageType.JPG, ImagePartType.Jpeg);
-            _imageTag.Add((int) ImageType.GIF, ImagePartType.Gif);
-            _imageTag.Add((int) ImageType.PCX, ImagePartType.Pcx);
-            _imageTag.Add((int) ImageType.PNG, ImagePartType.Png);
-            _imageTag.Add((int) ImageType.TIFF, ImagePartType.Tiff);
-
-            int key = (buf[1] << 8) + buf[0];
-            ImagePartType s;
-            if (_imageTag.TryGetValue(key, out s))
-            {
-                return s;
-            }
-            return ImagePartType.Jpeg;
-        }
-        public enum ImageType
-        {
-            None = 0,
-            BMP = 0x4D42,
-            JPG = 0xD8FF,
-            GIF = 0x4947,
-            PCX = 0x050A,
-            PNG = 0x5089,
-            PSD = 0x4238,
-            RAS = 0xA659,
-            SGI = 0xDA01,
-            TIFF = 0x4949
-        }
-
-        private static void AddImageToBody(Paragraph paragraph, string relationshipId)
-        {
-            // Define the reference of the image.
-            var element =
-                 new Drawing(
-                     new DW.Inline(
-                         new DW.Extent() { Cx = 990000L, Cy = 792000L },
-                         new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-                         new DW.DocProperties() { Id = (UInt32Value) 1U, Name = "Picture 1" },
-                         new DW.NonVisualGraphicFrameDrawingProperties(
-                             new A.GraphicFrameLocks() { NoChangeAspect = true }),
-                         new A.Graphic(
-                             new A.GraphicData(
-                                 new PIC.Picture(
-                                     new PIC.NonVisualPictureProperties(
-                                         new PIC.NonVisualDrawingProperties() { Id = (UInt32Value) 0U, Name = "New Bitmap Image.jpg" },
-                                         new PIC.NonVisualPictureDrawingProperties()),
-                                     new PIC.BlipFill(
-                                         new A.Blip(
-                                             new A.BlipExtensionList(
-                                                 new A.BlipExtension() { Uri = "{28A0092B-C50C-407E-A947-70E740481C1C}" })
-                                         )
-                                         {
-                                             Embed = relationshipId,
-                                             CompressionState = A.BlipCompressionValues.Print
-                                         },
-                                         new A.Stretch(new A.FillRectangle())),
-                                     new PIC.ShapeProperties(
-                                         new A.Transform2D(
-                                             new A.Offset() { X = 0L, Y = 0L },
-                                             new A.Extents() { Cx = 990000L, Cy = 792000L }),
-                                         new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }))
-                             )
-                             { Uri = "https://schemas.openxmlformats.org/drawingml/2006/picture" })
-                     )
-                     {
-                         DistanceFromTop = (UInt32Value) 0U,
-                         DistanceFromBottom = (UInt32Value) 0U,
-                         DistanceFromLeft = (UInt32Value) 0U,
-                         DistanceFromRight = (UInt32Value) 0U,
-                         //EditId = "50D07946"
-                     });
-            paragraph.AppendChild(new Run(element));
-        }
-
         #endregion
     }
 }

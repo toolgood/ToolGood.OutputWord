@@ -41,6 +41,7 @@ namespace ToolGood.WordTemplate
             ToolGood.OutputWord.WordTemplate openXmlTemplate = new ToolGood.OutputWord.WordTemplate();
             openXmlTemplate.SetData(dt);
             openXmlTemplate.SetListData("list", JsonConvert.SerializeObject(tableTests));
+            openXmlTemplate.SetImageFile("图片", "love.jpg");
 
             openXmlTemplate.BuildTemplate("test.docx", "openxml_2.docx");
 
