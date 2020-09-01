@@ -109,8 +109,9 @@ namespace ToolGood.OutputWord
                         Regex nameReg = new Regex(string.Join("|", listNames));
                         Dictionary<string, string> tempMatches = new Dictionary<string, string>();
                         foreach (Paragraph ph in row.Descendants<Paragraph>()) {
-                            var m2 = _rowMatch.Match(ph.InnerText.Trim());
-                            if (m2.Success) {
+                            var ms2 = _rowMatch.Matches(ph.InnerText.Trim());
+                            foreach (System.Text.RegularExpressions.Match m2 in ms2)
+                            {
                                 var txt = m2.Groups[1].Value;
                                 var eval = txt.Substring(2, txt.Length - 4).Trim();
                                 eval = nameReg.Replace(eval, new MatchEvaluator((k) => {
@@ -168,24 +169,26 @@ namespace ToolGood.OutputWord
             List<Paragraph> deleteParagraph = new List<Paragraph>();
             foreach (var paragraph in body.Descendants<Paragraph>()) {
                 var text = paragraph.InnerText.Trim();
-                var m = _tempEngine.Match(text);
-                if (m.Success) {
+                var ms = _tempEngine.Matches(text);
+                foreach (System.Text.RegularExpressions.Match m in ms)
+                {
                     var name = m.Groups[1].Value.Trim();
                     var engine = m.Groups[2].Value.Trim();
                     var value = this.TryEvaluate(engine, "");
                     this.AddParameter(name, value);
                     deleteParagraph.Add(paragraph);
-                    continue;
                 }
-                var m2 = _tempMatch.Match(text);
-                if (m2.Success) {
+        
+                var ms2 = _tempMatch.Matches(text);
+                foreach (System.Text.RegularExpressions.Match m2 in ms2)
+                {
                     tempMatches.Add(m2.Groups[1].Value);
-                    continue;
                 }
-                var m3 = _simplifyMatch.Match(text);
-                if (m3.Success) {
+               
+                var ms3 = _simplifyMatch.Matches(text);
+                foreach (System.Text.RegularExpressions.Match m3 in ms3)
+                {
                     tempMatches.Add(m3.Groups[1].Value);
-                    continue;
                 }
             }
             foreach (var paragraph in deleteParagraph) {
