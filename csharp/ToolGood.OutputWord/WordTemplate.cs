@@ -374,6 +374,10 @@ namespace ToolGood.OutputWord
         /// <param name="replaceWith"></param>
         private void ReplaceText(Paragraph paragraph, string find, string replaceWith)
         {
+            if (replaceWith==null)
+            {
+                replaceWith = "";
+            }
             var texts = paragraph.Descendants<Text>();
             for (int t = 0; t < texts.Count(); t++) {   // figure out which Text element within the paragraph contains the starting point of the search string
                 Text txt = texts.ElementAt(t);

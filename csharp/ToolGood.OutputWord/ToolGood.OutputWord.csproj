@@ -14,8 +14,8 @@
     <PackageTags>word</PackageTags>
     <PackageReleaseNotes>Word模板导出，采用ToolGood.Algorithm计算引擎，支持常用Excel公式，做到导出模板与代码分离的效果</PackageReleaseNotes>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <Version>1.0.0.3</Version>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Version>1.0.0.4</Version>
   </PropertyGroup>
 
   <ItemGroup>
