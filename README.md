@@ -48,3 +48,12 @@ d) 表格内插入多条数据：`{{公式}}`
 其中 list 为`SetListData`方法中的第一个参数，[i] 为第某行
 
 e) 插入图片：`<% 图片 %>` ，注意此标签会占整个段落，先清空段落，再插入图片
+
+
+### 相关dll文件（防止上线时漏掉）
+```
+    Antlr4.Runtime.Standard.dll
+    DocumentFormat.OpenXml.dll
+    ToolGood.Algorithm.dll
+    ToolGood.OutputWord.dll
+```
